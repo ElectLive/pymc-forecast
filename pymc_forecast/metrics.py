@@ -391,7 +391,10 @@ def make_mase(train_data, *, seasonality: int = 1) -> Metric:
         raise ValueError(msg)
     if isinstance(train_data, xr.DataArray):
         train_data = train_data.transpose("time", ...).values
-    train_data = np.asarray(train_data)
+    # Subtract in float64: integer training counts wrap in their own dtype
+    # (uint8 5-3 is fine, 3-5 is 254) and abs of a dtype minimum stays negative,
+    # which silently produced a wrong MASE scale.
+    train_data = np.asarray(train_data, dtype=np.float64)
     if train_data.shape[0] <= seasonality:
         msg = (
             "train_data must be longer than seasonality along time "

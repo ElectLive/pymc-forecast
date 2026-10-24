@@ -109,6 +109,28 @@ class TestMase:
         train = xr.DataArray(np.arange(10.0), dims=("time",))
         assert make_mase(train)(np.zeros((5, 2)), np.full(2, 3.0)) == pytest.approx(3.0)
 
+    @pytest.mark.parametrize(
+        ("train", "seasonality", "expected_scale"),
+        [
+            (np.array([5, 3, 8, 1], dtype=np.uint8), 1, 4.666666666666667),
+            (np.array([5, 9, 1, 0, 4], dtype=np.uint8), 2, 16.0 / 3.0),
+            (np.array([32767, -32768, 0], dtype=np.int16), 1, 49151.5),
+        ],
+    )
+    def test_integer_training_counts_use_float_scale(self, train, seasonality, expected_scale):
+        # abs(mean(diff)) in the input dtype wraps: uint8 3-5 is 254 and abs of
+        # the int16 minimum stays negative.
+        mase = make_mase(train, seasonality=seasonality)
+        mae = 2.0
+        truth = np.zeros(1)
+        pred = np.full((5, 1), mae)
+        assert mase(pred, truth) == pytest.approx(mae / expected_scale)
+
+    def test_integer_dataarray_takes_the_same_path(self):
+        train = xr.DataArray(np.array([5, 3, 8, 1], dtype=np.uint8), dims=("time",))
+        mase = make_mase(train)
+        assert mase(np.full((5, 1), 2.0), np.zeros(1)) == pytest.approx(2.0 / 4.666666666666667)
+
     def test_constant_series_rejected(self):
         with pytest.raises(ValueError, match="scale is zero"):
             make_mase(np.ones(5))
