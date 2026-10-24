@@ -41,7 +41,12 @@ def fourier_features(time, *, period: float, num_terms: int) -> xr.DataArray:
     if num_terms < 1:
         msg = f"num_terms must be >= 1, got {num_terms}"
         raise ValueError(msg)
-    positions = np.arange(time) if isinstance(time, int) else np.asarray(time, dtype=float)
+    # A NumPy/pandas scalar is 0-d, and `positions[:, None]` below then
+    # raises IndexError. `atleast_1d` makes a scalar phase a one-row
+    # design matrix, which is what the docstring promises.
+    positions = (
+        np.arange(time) if isinstance(time, int) else np.atleast_1d(np.asarray(time, dtype=float))
+    )
     angles = 2.0 * np.pi * np.arange(1, num_terms + 1)[None, :] * positions[:, None] / period
     values = np.concatenate([np.sin(angles), np.cos(angles)], axis=-1)
     labels = [f"sin_{k}" for k in range(1, num_terms + 1)] + [

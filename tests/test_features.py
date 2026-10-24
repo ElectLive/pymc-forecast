@@ -21,6 +21,21 @@ class TestFourierFeatures:
         np.testing.assert_allclose(feats.values[0], feats.values[2], atol=1e-12)
         np.testing.assert_allclose(feats.values[1, 0], 0.0, atol=1e-12)  # sin(pi)
 
+    @pytest.mark.parametrize(
+        "scalar",
+        [np.int64(10), 10.0, np.float64(10.0), np.array(10)],
+    )
+    def test_scalar_phase_is_one_row(self, scalar):
+        feats = fourier_features(scalar, period=7, num_terms=1)
+        assert feats.shape == (1, 2)
+        phase = float(np.asarray(scalar))
+        expected = [
+            np.sin(2 * np.pi * 1 * phase / 7.0),
+            np.cos(2 * np.pi * 1 * phase / 7.0),
+        ]
+        np.testing.assert_allclose(feats.values[0], expected, atol=1e-12)
+        assert list(feats["time"].values) == [phase]
+
     def test_num_terms_validated(self):
         with pytest.raises(ValueError, match="num_terms"):
             fourier_features(10, period=7, num_terms=0)
