@@ -21,6 +21,20 @@ class TestAsDataarray:
         data = as_dataarray(container([1.0, 2.0], index=index))
         assert data.get_index("time").freq == index.freq
 
+    def test_series_with_a_named_index_keeps_its_dates(self):
+        idx = pd.date_range("2024-06-01", periods=3, freq="D", name="date")
+        da = as_dataarray(pd.Series([1.0, 2.0, 3.0], index=idx))
+        assert da.dims == ("time",)
+        np.testing.assert_array_equal(da["time"].values, idx.values)
+
+    def test_square_frame_with_a_colliding_index_name_selects_time_rows(self):
+        idx = pd.Index([10, 20], name="covariate")
+        df = pd.DataFrame([[1.0, 3.0], [2.0, 4.0]], index=idx, columns=["a", "b"])
+        da = as_dataarray(df, role="covariates")
+        assert da.dims == ("time", "covariate")
+        np.testing.assert_array_equal(da["time"].values, idx.values)
+        np.testing.assert_array_equal(da.sel(time=10).values, [1.0, 3.0])
+
     def test_numpy_1d(self):
         da = as_dataarray(np.arange(5.0))
         assert da.dims == ("time",)

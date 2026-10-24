@@ -95,15 +95,26 @@ def as_dataarray(obj, *, role: Role = "data") -> xr.DataArray:
         # pymc and xarray in practice, so this never fails in a working env.
         import pandas as pd
 
+        # xarray derives a coordinate's dim from `Index.name`, so a named
+        # pandas index ("date", or "covariate" on a square frame) either raised
+        # CoordinateValidationError or, worse, matched the second dim and
+        # selected a column instead of a time row. Rename the index to the
+        # documented time dim before handing it to xarray.
         if isinstance(obj, pd.Series):
             da = xr.DataArray(
-                obj.to_numpy(), dims=(TIME_DIM,), coords={TIME_DIM: obj.index}, name=obj.name
+                obj.to_numpy(),
+                dims=(TIME_DIM,),
+                coords={TIME_DIM: obj.index.rename(TIME_DIM)},
+                name=obj.name,
             )
         elif isinstance(obj, pd.DataFrame):
             da = xr.DataArray(
                 obj.to_numpy(),
                 dims=(TIME_DIM, second),
-                coords={TIME_DIM: obj.index, second: obj.columns},
+                coords={
+                    TIME_DIM: obj.index.rename(TIME_DIM),
+                    second: obj.columns.rename(None),
+                },
             )
         else:
             arr = np.asarray(obj)
